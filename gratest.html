@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pokonaj Raka!</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #111;
+        color: white;
+        font-family: "Arial", sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      #global-counter {
+        background: #ffd700;
+        color: #000;
+        padding: 10px 20px;
+        font-size: 20px;
+        font-weight: bold;
+        border-radius: 8px;
+        margin-bottom: 5px;
+        box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+        text-transform: uppercase;
+        text-align: center;
+      }
+
+      #donation-banner {
+        color: #ff4da6;
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        text-shadow: 0 0 8px rgba(255, 77, 166, 0.8);
+        letter-spacing: 1px;
+      }
+
+      #character-select {
+        margin-bottom: 15px;
+        background: #222;
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: 2px solid #444;
+        z-index: 30;
+        position: relative;
+      }
+
+      button {
+        background-color: #1e90ff;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        margin: 0 5px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 5px;
+        transition: 0.2s;
+      }
+      button:hover:not(:disabled) {
+        background-color: #00bfff;
+      }
+      .btn-active {
+        background-color: #32cd32 !important;
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      #ui {
+        width: 800px;
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+      }
+
+      .health-bar-container {
+        width: 45%;
+        height: 30px;
+        background-color: #444;
+        border: 4px solid #fff;
+        border-radius: 5px;
+        position: relative;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      }
+      .health-bar {
+        height: 100%;
+        background-color: #32cd32;
+        width: 100%;
+        transition: width 0.2s ease-out;
+      }
+      .enemy-health {
+        background-color: #ff3333;
+        float: right;
+      }
+      .name {
+        position: absolute;
+        top: -28px;
+        font-size: 20px;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+      .player-name {
+        color: #1e90ff;
+        left: 0;
+      }
+      .enemy-name {
+        color: #ff3333;
+        right: 0;
+      }
+
+      canvas {
+        background-color: #000;
+        border: 5px solid #fff;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+        image-rendering: auto;
+      }
+
+      #controls {
+        margin-top: 15px;
+        text-align: center;
+        color: #aaa;
+        font-size: 14px;
+      }
+
+      #start-overlay {
+        position: absolute;
+        background: rgba(0, 0, 0, 0.85);
+        padding: 20px 40px;
+        border: 3px solid #1e90ff;
+        border-radius: 10px;
+        font-size: 24px;
+        font-weight: bold;
+        color: white;
+        text-align: center;
+        z-index: 20;
+        box-shadow: 0 0 20px rgba(30, 144, 255, 0.5);
+      }
+
+      #game-over-container {
+        position: absolute;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.85);
+        padding: 40px;
+        border: 4px solid #fff;
+        border-radius: 15px;
+        z-index: 40;
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+      }
+      #game-over-text {
+        font-size: 50px;
+        font-weight: bold;
+        text-shadow: 4px 4px 0 #000;
+        margin-bottom: 30px;
+        text-align: center;
+      }
+      #restart-btn {
+        background-color: #ffd700;
+        color: #000;
+        font-size: 22px;
+        padding: 15px 30px;
+        border-radius: 8px;
+        border: 2px solid #fff;
+        text-transform: uppercase;
+      }
+      #restart-btn:hover {
+        background-color: #ffa500;
+        transform: scale(1.05);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="global-counter">
+      Pokonaliśmy raka łącznie <span id="win-count">...</span> razy!
+    </div>
+
+    <div id="donation-banner">
+      KAŻDE ZWYCIĘSTWO Z RAKIEM = 1 ZŁ WPŁATY OD TWÓRCY
+    </div>
+
+    <div id="character-select">
+      Wybierz bohatera:
+      <button id="btn-woman" onclick="selectCharacter('woman')">Kobieta</button>
+      <button id="btn-man" onclick="selectCharacter('man')">Mężczyzna</button>
+    </div>
+
+    <div id="ui">
+      <div class="health-bar-container">
+        <div class="name player-name">GRACZ</div>
+        <div id="playerHealth" class="health-bar"></div>
+      </div>
+      <div class="health-bar-container">
+        <div class="name enemy-name">RAK</div>
+        <div id="enemyHealth" class="health-bar enemy-health"></div>
+      </div>
+    </div>
+
+    <div id="start-overlay">
+      Zanim zaczniesz, wybierz swojego bohatera na górze ekranu!
+    </div>
+
+    <div id="game-over-container">
+      <div id="game-over-text"></div>
+      <button id="restart-btn" onclick="restartGame()">Spróbuj ponownie</button>
+    </div>
+
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+    <div id="controls">
+      **Sterowanie:** [A]/[D] - Chodzenie | [W] - Skok | [Spacja] - Atak
+    </div>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+      import {
+        getDatabase,
+        ref,
+        onValue,
+        set,
+        increment,
+      } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyA9tHnt2FvPKs-u7AVijpXhoxFwKfmoQYk",
+        authDomain: "cancerfighters-ed9e4.firebaseapp.com",
+        databaseURL:
+          "https://cancerfighters-ed9e4-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "cancerfighters-ed9e4",
+        storageBucket: "cancerfighters-ed9e4.firebasestorage.app",
+        messagingSenderId: "322741259349",
+        appId: "1:322741259349:web:cd494a8f0582b614b058dc",
+        measurementId: "G-83SW9H6Z6C",
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getDatabase(app);
+      const dbRef = ref(db, "globalWins");
+
+      onValue(dbRef, (snapshot) => {
+        const count = snapshot.val() || 0;
+        document.getElementById("win-count").innerText = count;
+      });
+
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const playerHealthBar = document.getElementById("playerHealth");
+      const enemyHealthBar = document.getElementById("enemyHealth");
+      const gameOverContainer = document.getElementById("game-over-container");
+      const gameOverText = document.getElementById("game-over-text");
+
+      let isGameOver = false;
+      let hasCountedWin = false;
+      let gameStarted = false;
+
+      const bgImage = new Image();
+      bgImage.src = "tlo.png";
+      const womanIdle = new Image();
+      womanIdle.src = "kobieta_idle.png";
+      const womanAttack = new Image();
+      womanAttack.src = "kobieta_atak.png";
+      const manIdle = new Image();
+      manIdle.src = "mezczyzna_idle.png";
+      const manAttack = new Image();
+      manAttack.src = "mezczyzna_atak.png";
+      const enemyIdleImg = new Image();
+      enemyIdleImg.src = "rak_idle.png";
+      const enemyAttackImg = new Image();
+      enemyAttackImg.src = "rak_atak.png";
+
+      let currentPlayerIdle = womanIdle;
+      let currentPlayerAttack = womanAttack;
+
+      window.selectCharacter = function (type) {
+        if (gameStarted) return;
+
+        document.getElementById("start-overlay").style.display = "none";
+        gameStarted = true;
+
+        document.getElementById("btn-woman").disabled = true;
+        document.getElementById("btn-man").disabled = true;
+
+        document.getElementById("btn-woman").classList.remove("btn-active");
+        document.getElementById("btn-man").classList.remove("btn-active");
+
+        if (type === "woman") {
+          currentPlayerIdle = womanIdle;
+          currentPlayerAttack = womanAttack;
+          document.getElementById("btn-woman").classList.add("btn-active");
+        } else {
+          currentPlayerIdle = manIdle;
+          currentPlayerAttack = manAttack;
+          document.getElementById("btn-man").classList.add("btn-active");
+        }
+      };
+
+      const keys = {
+        a: { pressed: false },
+        d: { pressed: false },
+        w: { pressed: false },
+        space: { pressed: false },
+      };
+      const gravity = 0.8;
+
+      // --- ZWIĘKSZONE POSTACIE ---
+      const player = {
+        x: 100,
+        y: 130,
+        groundY: 130,
+        vy: 0,
+        jumpPower: -15,
+        isJumping: false,
+        width: 175,
+        height: 225,
+        speed: 6,
+        health: 100,
+        isAttacking: false,
+        facing: "right",
+        attackBox: { width: 140, height: 120, offsetX: 100, offsetY: 40 },
+      };
+
+      const enemy = {
+        x: 550,
+        y: 190,
+        width: 200,
+        height: 150,
+        speed: 3,
+        health: 100,
+        isAttacking: false,
+        facing: "left",
+        attackBox: { width: 120, height: 100, offsetX: 170, offsetY: 30 },
+        attackTimer: 0,
+      };
+
+      window.restartGame = function () {
+        player.health = 100;
+        player.x = 100; // Reset do nowych kordynatów
+        player.y = 130;
+        player.vy = 0;
+        player.facing = "right";
+
+        enemy.health = 100;
+        enemy.x = 550;
+        enemy.y = 190;
+        enemy.facing = "left";
+        enemy.attackTimer = 0;
+
+        isGameOver = false;
+        hasCountedWin = false;
+
+        gameOverContainer.style.display = "none";
+        updateHealthBars();
+      };
+
+      window.addEventListener("keydown", (e) => {
+        if (isGameOver || !gameStarted) return;
+        switch (e.key.toLowerCase()) {
+          case "a":
+            keys.a.pressed = true;
+            player.facing = "left";
+            break;
+          case "d":
+            keys.d.pressed = true;
+            player.facing = "right";
+            break;
+          case "w":
+            if (!player.isJumping) {
+              player.vy = player.jumpPower;
+              player.isJumping = true;
+            }
+            break;
+          case " ":
+            if (!player.isAttacking) attack(player, enemy);
+            break;
+        }
+      });
+
+      window.addEventListener("keyup", (e) => {
+        switch (e.key.toLowerCase()) {
+          case "a":
+            keys.a.pressed = false;
+            break;
+          case "d":
+            keys.d.pressed = false;
+            break;
+        }
+      });
+
+      function attack(attacker, target) {
+        attacker.isAttacking = true;
+        let attackX =
+          attacker.facing === "right"
+            ? attacker.x + attacker.attackBox.offsetX
+            : attacker.x +
+              attacker.width -
+              attacker.attackBox.offsetX -
+              attacker.attackBox.width;
+        let attackY = attacker.y + attacker.attackBox.offsetY;
+
+        if (
+          attackX < target.x + target.width &&
+          attackX + attacker.attackBox.width > target.x &&
+          attackY < target.y + target.height &&
+          attackY + attacker.attackBox.height > target.y
+        ) {
+          target.health -= 10;
+          updateHealthBars();
+          checkWinner();
+        }
+        setTimeout(() => {
+          attacker.isAttacking = false;
+        }, 250);
+      }
+
+      function updateHealthBars() {
+        playerHealthBar.style.width = player.health + "%";
+        enemyHealthBar.style.width = enemy.health + "%";
+      }
+
+      function checkWinner() {
+        if (player.health <= 0 || enemy.health <= 0) {
+          isGameOver = true;
+          gameOverContainer.style.display = "flex";
+
+          if (player.health <= 0 && enemy.health <= 0) {
+            gameOverText.innerText = "REMIS!";
+            gameOverText.style.color = "#fff";
+            gameOverContainer.style.borderColor = "#fff";
+          } else if (player.health <= 0) {
+            gameOverText.innerText = "RAK WYGRAŁ...";
+            gameOverText.style.color = "red";
+            gameOverContainer.style.borderColor = "red";
+          } else {
+            gameOverText.innerText = "POKONAŁEŚ RAKA!";
+            gameOverText.style.color = "#32CD32";
+            gameOverContainer.style.borderColor = "#32CD32";
+
+            if (!hasCountedWin && db) {
+              set(dbRef, increment(1));
+              hasCountedWin = true;
+            }
+          }
+        }
+      }
+
+      function enemyAI() {
+        if (enemy.x > player.x) {
+          enemy.facing = "left";
+        } else {
+          enemy.facing = "right";
+        }
+        const dist = Math.abs(player.x - enemy.x);
+
+        // 1. DYSTANS RUCHU: Rak idzie w Twoją stronę, jeśli jest dalej niż 180px
+        // Jeśli zwiększysz tę wartość (np. na 200), Rak zatrzyma się dalej od Ciebie.
+        if (dist > 180) {
+          if (enemy.x > player.x) enemy.x -= enemy.speed;
+          else enemy.x += enemy.speed;
+        }
+
+        // 2. ZASIĘG ATAKU: Rak ładuje uderzenie, gdy znajdzie się bliżej niż 200px
+        // Jeśli zmniejszysz tę wartość (np. na 160), będzie musiał podejść bardzo blisko, żeby zaatakować.
+        if (dist < 160) {
+          enemy.attackTimer++;
+          if (enemy.attackTimer > 60) {
+            // 60 klatek = około 1 sekunda ładowania ataku
+            attack(enemy, player);
+            enemy.attackTimer = 0;
+          }
+        } else {
+          enemy.attackTimer = 0; // Gracz uciekł z zasięgu, przerywamy ładowanie ataku
+        }
+      }
+
+      function drawSprite(img, obj) {
+        if (!img.complete || img.naturalHeight === 0) return;
+        if (obj.facing === "left") {
+          ctx.save();
+          ctx.scale(-1, 1);
+          ctx.drawImage(img, -obj.x - obj.width, obj.y, obj.width, obj.height);
+          ctx.restore();
+        } else {
+          ctx.drawImage(img, obj.x, obj.y, obj.width, obj.height);
+        }
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+
+        if (bgImage.complete && bgImage.naturalHeight !== 0) {
+          ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        if (!gameStarted) return;
+
+        if (!isGameOver) {
+          player.y += player.vy;
+          if (player.y < player.groundY) {
+            player.vy += gravity;
+          } else {
+            player.y = player.groundY;
+            player.vy = 0;
+            player.isJumping = false;
+          }
+
+          if (keys.a.pressed && player.x > 0) player.x -= player.speed;
+          else if (keys.d.pressed && player.x + player.width < canvas.width)
+            player.x += player.speed;
+
+          enemyAI();
+        }
+
+        const playerImg = player.isAttacking
+          ? currentPlayerAttack
+          : currentPlayerIdle;
+        drawSprite(playerImg, player);
+
+        const enemyImg = enemy.isAttacking ? enemyAttackImg : enemyIdleImg;
+        drawSprite(enemyImg, enemy);
+      }
+
+      bgImage.onload = animate;
+    </script>
+  </body>
+</html>
